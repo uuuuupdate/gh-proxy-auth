@@ -14,6 +14,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const (
+	// proxyBufSize is the buffer size used for streaming proxy responses
+	proxyBufSize = 32 * 1024 // 32KB
+)
+
 var (
 	exp1 = regexp.MustCompile(`^(?:https?://)?github\.com/(.+?)/(.+?)/(?:releases|archive)/.*$`)
 	exp2 = regexp.MustCompile(`^(?:https?://)?github\.com/(.+?)/(.+?)/(?:blob|raw)/.*$`)
@@ -218,7 +223,7 @@ func (h *ProxyHandler) doProxy(c *gin.Context, targetURL string, followRedirects
 	c.Status(resp.StatusCode)
 
 	// Stream response
-	buf := make([]byte, 32*1024)
+	buf := make([]byte, proxyBufSize)
 	if _, err := io.CopyBuffer(c.Writer, resp.Body, buf); err != nil {
 		// Client probably disconnected, just log
 		fmt.Printf("Proxy stream error: %v\n", err)
