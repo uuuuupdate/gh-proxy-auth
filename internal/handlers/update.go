@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -29,6 +30,22 @@ var RestartChan = make(chan struct{}, 1)
 
 // updateMu prevents concurrent update attempts.
 var updateMu sync.Mutex
+
+const (
+	githubRepo      = "dowork-shanqiu/gh-proxy-auth"
+	githubAPIURL    = "https://api.github.com/repos/" + githubRepo + "/releases/latest"
+	updateTmpPrefix = ".gh-proxy-auth-update-"
+)
+
+// allowedDownloadHosts lists the GitHub domains that are valid sources for
+// release asset downloads. This prevents open-redirect / SSRF attacks if the
+// GitHub API response were ever tampered with.
+var allowedDownloadHosts = []string{
+	"github.com",
+	"objects.githubusercontent.com",
+	"github-releases.githubusercontent.com",
+	"codeload.github.com",
+}
 
 type githubRelease struct {
 	TagName string        `json:"tag_name"`
@@ -116,6 +133,12 @@ func (h *UpdateHandler) ApplyUpdate(c *gin.Context) {
 		return
 	}
 
+	if err := validateDownloadURL(downloadURL); err != nil {
+		updateMu.Unlock()
+		c.JSON(http.StatusBadRequest, gin.H{"error": "下载地址验证失败: " + err.Error()})
+		return
+	}
+
 	// Return immediately so the client gets a response before the server restarts.
 	c.JSON(http.StatusOK, gin.H{
 		"message": "开始下载更新，下载完成后服务将自动重启",
@@ -135,9 +158,28 @@ func (h *UpdateHandler) ApplyUpdate(c *gin.Context) {
 	}()
 }
 
+// validateDownloadURL returns an error if the URL does not point to an allowed
+// GitHub domain, protecting against potential SSRF / redirection attacks.
+func validateDownloadURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("无效的 URL: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("仅允许 HTTPS 下载")
+	}
+	host := strings.ToLower(u.Hostname())
+	for _, allowed := range allowedDownloadHosts {
+		if host == allowed || strings.HasSuffix(host, "."+allowed) {
+			return nil
+		}
+	}
+	return fmt.Errorf("不允许从 %s 下载", host)
+}
+
 // downloadAndReplace downloads the binary at url and atomically replaces the
 // current executable with it.
-func downloadAndReplace(url string) error {
+func downloadAndReplace(rawURL string) error {
 	execPath, err := os.Executable()
 	if err != nil {
 		return fmt.Errorf("获取当前程序路径失败: %w", err)
@@ -150,7 +192,7 @@ func downloadAndReplace(url string) error {
 
 	// Download to a temporary file in the same directory to enable atomic rename.
 	dir := filepath.Dir(execPath)
-	tmp, err := os.CreateTemp(dir, ".gh-proxy-auth-update-*")
+	tmp, err := os.CreateTemp(dir, updateTmpPrefix)
 	if err != nil {
 		return fmt.Errorf("创建临时文件失败: %w", err)
 	}
@@ -162,7 +204,7 @@ func downloadAndReplace(url string) error {
 	}()
 
 	client := &http.Client{Timeout: 10 * time.Minute}
-	resp, err := client.Get(url) //nolint:noctx
+	resp, err := client.Get(rawURL) //nolint:noctx
 	if err != nil {
 		return fmt.Errorf("下载失败: %w", err)
 	}
@@ -199,8 +241,7 @@ func downloadAndReplace(url string) error {
 // fetchLatestRelease queries the GitHub API for the latest release.
 func fetchLatestRelease() (*githubRelease, error) {
 	client := &http.Client{Timeout: 15 * time.Second}
-	req, err := http.NewRequest(http.MethodGet,
-		"https://api.github.com/repos/dowork-shanqiu/gh-proxy-auth/releases/latest", nil)
+	req, err := http.NewRequest(http.MethodGet, githubAPIURL, nil)
 	if err != nil {
 		return nil, err
 	}
