@@ -14,10 +14,16 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-vue': ['vue', 'vue-router', 'pinia'],
-          'vendor-ui': ['radix-vue', 'lucide-vue-next'],
-          'vendor-utils': ['axios', '@vueuse/core'],
+        manualChunks(id) {
+          if (['vue', 'vue-router', 'pinia'].some(pkg => id.includes(`node_modules/${pkg}`))) {
+            return 'vendor-vue'
+          }
+          if (['radix-vue', 'lucide-vue-next'].some(pkg => id.includes(`node_modules/${pkg}`))) {
+            return 'vendor-ui'
+          }
+          if (['axios', '@vueuse/core'].some(pkg => id.includes(`node_modules/${pkg}`))) {
+            return 'vendor-utils'
+          }
         },
       },
     },
