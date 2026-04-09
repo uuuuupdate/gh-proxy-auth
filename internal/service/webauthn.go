@@ -112,5 +112,5 @@ func GetSessionData(userID uint) (string, error) {
 
 func ClearSessionData(userID uint) {
 	key := fmt.Sprintf("webauthn_session_%d", userID)
-	database.DB.Where("key = ?", key).Delete(&models.Setting{})
+	database.DB.Unscoped().Where("key = ?", key).Delete(&models.Setting{})
 }

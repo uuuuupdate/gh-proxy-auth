@@ -63,6 +63,6 @@ func SetSetting(key, value string) error {
 	setting := models.Setting{Key: key, Value: value}
 	return DB.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "key"}},
-		DoUpdates: clause.AssignmentColumns([]string{"value", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"value", "updated_at", "deleted_at"}),
 	}).Create(&setting).Error
 }
