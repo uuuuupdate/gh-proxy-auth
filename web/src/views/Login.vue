@@ -20,6 +20,7 @@ const mfaRequired = ref(false)
 const mfaType = ref('')
 const mfaUserId = ref(0)
 const totpCode = ref('')
+const availableMFAMethods = ref<string[]>([])
 
 onMounted(async () => {
   try {
@@ -47,6 +48,7 @@ async function handleLogin() {
       mfaRequired.value = true
       mfaType.value = res.data.mfa_type
       mfaUserId.value = res.data.user_id
+      availableMFAMethods.value = res.data.available_mfa_methods || [res.data.mfa_type]
       loading.value = false
       return
     }
@@ -86,7 +88,7 @@ async function handlePasskeyLogin() {
       user_id: mfaUserId.value,
     })
 
-    const options = beginRes.data
+    const options = beginRes.data.publicKey
 
     // Convert challenge and credential IDs
     options.challenge = base64URLToBuffer(options.challenge)
@@ -124,6 +126,15 @@ async function handlePasskeyLogin() {
     error.value = err.response?.data?.error || 'Passkey 认证失败'
   } finally {
     loading.value = false
+  }
+}
+
+function switchMFAMethod() {
+  const other = availableMFAMethods.value.find(m => m !== mfaType.value)
+  if (other) {
+    mfaType.value = other
+    error.value = ''
+    totpCode.value = ''
   }
 }
 
@@ -197,7 +208,10 @@ function bufferToBase64URL(buffer: ArrayBuffer): string {
 
         <!-- MFA Verification -->
         <template v-else>
-          <h2 class="text-lg font-semibold mb-4">二步验证</h2>
+          <h2 class="text-lg font-semibold mb-1">二步验证</h2>
+          <p class="text-xs text-[hsl(var(--muted-foreground))] mb-4">
+            当前方式：<span class="font-medium">{{ mfaType === 'totp' ? 'TOTP 验证码' : 'Passkey' }}</span>
+          </p>
 
           <div v-if="error" class="mb-4 p-3 rounded-md bg-red-50 text-red-600 text-sm">{{ error }}</div>
 
@@ -219,6 +233,16 @@ function bufferToBase64URL(buffer: ArrayBuffer): string {
               {{ loading ? '验证中...' : '使用 Passkey 验证' }}
             </button>
           </template>
+
+          <!-- Switch MFA method (only shown when both are available) -->
+          <button
+            v-if="availableMFAMethods.length > 1"
+            @click="switchMFAMethod"
+            :disabled="loading"
+            class="w-full mt-3 py-2 px-4 rounded-md border border-[hsl(var(--border))] text-sm hover:bg-[hsl(var(--secondary))] transition-colors disabled:opacity-50"
+          >
+            切换为{{ mfaType === 'totp' ? 'Passkey' : 'TOTP 验证码' }}验证
+          </button>
 
           <button @click="mfaRequired = false; error = ''" class="w-full mt-3 py-2 px-4 rounded-md border border-[hsl(var(--border))] text-sm hover:bg-[hsl(var(--secondary))] transition-colors">
             返回登录

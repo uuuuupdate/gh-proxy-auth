@@ -97,11 +97,12 @@ func (h *AuthHandler) Register(c *gin.Context) {
 }
 
 type LoginResponse struct {
-	RequireMFA bool   `json:"require_mfa,omitempty"`
-	MFAType    string `json:"mfa_type,omitempty"`
-	UserID     uint   `json:"user_id,omitempty"`
-	Token      string `json:"token,omitempty"`
-	User       gin.H  `json:"user,omitempty"`
+	RequireMFA          bool     `json:"require_mfa,omitempty"`
+	MFAType             string   `json:"mfa_type,omitempty"`
+	AvailableMFAMethods []string `json:"available_mfa_methods,omitempty"`
+	UserID              uint     `json:"user_id,omitempty"`
+	Token               string   `json:"token,omitempty"`
+	User                gin.H    `json:"user,omitempty"`
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -136,10 +137,19 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			mfaType = "passkey"
 		}
 
+		var available []string
+		if hasPasskey {
+			available = append(available, "passkey")
+		}
+		if user.TOTPEnabled {
+			available = append(available, "totp")
+		}
+
 		resp := LoginResponse{
-			RequireMFA: true,
-			MFAType:    mfaType,
-			UserID:     user.ID,
+			RequireMFA:          true,
+			MFAType:             mfaType,
+			AvailableMFAMethods: available,
+			UserID:              user.ID,
 		}
 
 		c.JSON(http.StatusOK, resp)
