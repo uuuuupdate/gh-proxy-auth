@@ -54,9 +54,6 @@ func (tb *tokenBucket) wait(ctx context.Context, n int) error {
 		deficit := need - tb.tokens
 		tb.tokens = 0
 		sleepDur := time.Duration(deficit / tb.rate * float64(time.Second))
-		if sleepDur < time.Millisecond {
-			sleepDur = time.Millisecond
-		}
 		tb.mu.Unlock()
 
 		select {

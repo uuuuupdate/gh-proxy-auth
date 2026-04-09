@@ -13,6 +13,7 @@ import (
 "github.com/dowork-shanqiu/gh-proxy-auth/internal/database"
 "github.com/dowork-shanqiu/gh-proxy-auth/internal/models"
 "github.com/gin-gonic/gin"
+"gorm.io/gorm"
 )
 
 const (
@@ -102,7 +103,9 @@ return
 }
 
 var tokenRecord models.Token
-if err := database.DB.Preload("User").Where("token = ?", token).First(&tokenRecord).Error; err != nil {
+if err := database.DB.Preload("User", func(db *gorm.DB) *gorm.DB {
+return db.Select("id, speed_limit")
+}).Where("token = ?", token).First(&tokenRecord).Error; err != nil {
 c.JSON(http.StatusUnauthorized, gin.H{"error": "无效的访问令牌"})
 return
 }

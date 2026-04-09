@@ -100,6 +100,10 @@ req.SpeedLimit = 0
 }
 
 result := database.DB.Model(&models.User{}).Where("id = ?", userID).Update("speed_limit", req.SpeedLimit)
+if result.Error != nil {
+c.JSON(http.StatusInternalServerError, gin.H{"error": "更新失败"})
+return
+}
 if result.RowsAffected == 0 {
 c.JSON(http.StatusNotFound, gin.H{"error": "用户不存在"})
 return
