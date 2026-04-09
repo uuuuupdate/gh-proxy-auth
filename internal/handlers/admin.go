@@ -3,6 +3,7 @@ package handlers
 import (
 "net/http"
 "strconv"
+"time"
 
 "github.com/dowork-shanqiu/gh-proxy-auth/internal/database"
 "github.com/dowork-shanqiu/gh-proxy-auth/internal/models"
@@ -122,15 +123,28 @@ if pageSize < 1 || pageSize > 100 {
 pageSize = 20
 }
 
-var logs []models.DownloadLog
 var total int64
-
 database.DB.Model(&models.DownloadLog{}).Count(&total)
-database.DB.Preload("User").Preload("Token").
-Order("created_at desc").
+
+type logScan struct {
+ID        uint
+CreatedAt time.Time
+URL       string
+IP        string
+Username  string
+TokenName string
+}
+
+var rows []logScan
+database.DB.Table("download_logs").
+Select("download_logs.id, download_logs.created_at, download_logs.url, download_logs.ip, users.username, tokens.name as token_name").
+Joins("LEFT JOIN users ON users.id = download_logs.user_id").
+Joins("LEFT JOIN tokens ON tokens.id = download_logs.token_id").
+Where("download_logs.deleted_at IS NULL").
+Order("download_logs.created_at desc").
 Offset((page - 1) * pageSize).
 Limit(pageSize).
-Find(&logs)
+Scan(&rows)
 
 type LogItem struct {
 ID        uint   `json:"id"`
@@ -141,15 +155,15 @@ URL       string `json:"url"`
 IP        string `json:"ip"`
 }
 
-items := make([]LogItem, 0, len(logs))
-for _, log := range logs {
+items := make([]LogItem, 0, len(rows))
+for _, r := range rows {
 items = append(items, LogItem{
-ID:        log.ID,
-CreatedAt: log.CreatedAt.Format("2006-01-02 15:04:05"),
-Username:  log.User.Username,
-TokenName: log.Token.Name,
-URL:       log.URL,
-IP:        log.IP,
+ID:        r.ID,
+CreatedAt: r.CreatedAt.Format("2006-01-02 15:04:05"),
+Username:  r.Username,
+TokenName: r.TokenName,
+URL:       r.URL,
+IP:        r.IP,
 })
 }
 

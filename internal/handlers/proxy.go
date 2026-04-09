@@ -1,8 +1,9 @@
 package handlers
 
 import (
-"fmt"
 "io"
+"log"
+"net"
 "net/http"
 "net/url"
 "regexp"
@@ -41,12 +42,20 @@ expSchemeSlash = regexp.MustCompile(`^https?:/+`)
 // proxyClient is shared across all proxy requests for connection pooling and TLS session reuse.
 proxyClient = &http.Client{
 Transport: &http.Transport{
+DialContext: (&net.Dialer{
+Timeout:   30 * time.Second,
+KeepAlive: 30 * time.Second,
+}).DialContext,
 MaxIdleConns:          200,
 MaxIdleConnsPerHost:   20,
 IdleConnTimeout:       90 * time.Second,
 TLSHandshakeTimeout:   10 * time.Second,
 ExpectContinueTimeout: 1 * time.Second,
-DisableCompression:    false,
+ResponseHeaderTimeout: 30 * time.Second,
+// DisableCompression prevents the transport from decompressing responses.
+// This preserves the original Content-Encoding and Content-Length headers,
+// which is essential for correct proxying of binary file downloads.
+DisableCompression: true,
 },
 CheckRedirect: func(req *http.Request, via []*http.Request) error {
 return http.ErrUseLastResponse
@@ -137,25 +146,30 @@ if !strings.HasPrefix(rawPath, "https://") && !strings.HasPrefix(rawPath, "http:
 rawPath = "https://" + rawPath
 }
 
-// Log download
-logEntry := models.DownloadLog{
-UserID:    tokenRecord.UserID,
-TokenID:   tokenRecord.ID,
+// Log download asynchronously to avoid blocking the proxy response.
+userID := tokenRecord.UserID
+tokenID := tokenRecord.ID
+ip := c.ClientIP()
+userAgent := c.Request.UserAgent()
+go func() {
+database.DB.Create(&models.DownloadLog{
+UserID:    userID,
+TokenID:   tokenID,
 URL:       rawPath,
-IP:        c.ClientIP(),
-UserAgent: c.Request.UserAgent(),
-}
-database.DB.Create(&logEntry)
+IP:        ip,
+UserAgent: userAgent,
+})
+}()
 
 // Proxy the request with user's speed limit
 h.proxyRequest(c, rawPath, tokenRecord.User.SpeedLimit)
 }
 
 func (h *ProxyHandler) proxyRequest(c *gin.Context, targetURL string, speedLimit int64) {
-h.doProxy(c, targetURL, false, 0, speedLimit)
+h.doProxy(c, targetURL, 0, speedLimit)
 }
 
-func (h *ProxyHandler) doProxy(c *gin.Context, targetURL string, followRedirects bool, depth int, speedLimit int64) {
+func (h *ProxyHandler) doProxy(c *gin.Context, targetURL string, depth int, speedLimit int64) {
 if depth > 10 {
 c.String(http.StatusBadGateway, "Too many redirects")
 return
@@ -215,12 +229,14 @@ if location := resp.Header.Get("Location"); location != "" {
 if checkURL(location) {
 resp.Header.Set("Location", "/"+location)
 } else {
-h.doProxy(c, location, true, depth+1, speedLimit)
+h.doProxy(c, location, depth+1, speedLimit)
 return
 }
 }
 
-// Set response headers
+// Set response headers. Assign the value slice directly to preserve
+// multi-value headers (e.g. Set-Cookie, Vary) correctly.
+respHdr := c.Writer.Header()
 for key, values := range resp.Header {
 lower := strings.ToLower(key)
 if lower == "content-security-policy" ||
@@ -228,13 +244,11 @@ lower == "content-security-policy-report-only" ||
 lower == "clear-site-data" {
 continue
 }
-for _, value := range values {
-c.Header(key, value)
-}
+respHdr[key] = values
 }
 
-c.Header("Access-Control-Allow-Origin", "*")
-c.Header("Access-Control-Expose-Headers", "*")
+respHdr.Set("Access-Control-Allow-Origin", "*")
+respHdr.Set("Access-Control-Expose-Headers", "*")
 
 c.Status(resp.StatusCode)
 
@@ -260,6 +274,6 @@ buf = make([]byte, proxyCopyBuf)
 
 if _, err := io.CopyBuffer(c.Writer, reader, buf); err != nil {
 // Client probably disconnected, just log
-fmt.Printf("Proxy stream error: %v\n", err)
+log.Printf("Proxy stream error: %v", err)
 }
 }

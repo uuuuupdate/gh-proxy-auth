@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/dowork-shanqiu/gh-proxy-auth/internal/database"
 	"github.com/dowork-shanqiu/gh-proxy-auth/internal/models"
@@ -240,14 +241,10 @@ func (h *AuthHandler) FinishPasskeyLogin(c *gin.Context) {
 		UserID uint `json:"user_id"`
 	}
 
-	userID := c.Query("user_id")
-	if userID != "" {
-		var id uint
-		if _, err := json.Number(userID).Int64(); err == nil {
-			val, _ := json.Number(userID).Int64()
-			id = uint(val)
+	if rawID := c.Query("user_id"); rawID != "" {
+		if id, err := strconv.ParseUint(rawID, 10, 64); err == nil {
+			req.UserID = uint(id)
 		}
-		req.UserID = id
 	}
 
 	if req.UserID == 0 {
