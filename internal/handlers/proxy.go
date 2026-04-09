@@ -26,6 +26,7 @@ var (
 	exp4 = regexp.MustCompile(`^(?:https?://)?raw\.(?:githubusercontent|github)\.com/(.+?)/(.+?)/.+?/.+$`)
 	exp5 = regexp.MustCompile(`^(?:https?://)?gist\.(?:githubusercontent|github)\.com/(.+?)/.+?/.+$`)
 	exp6 = regexp.MustCompile(`^(?:https?://)?github\.com/(.+?)/(.+?)/tags.*$`)
+	exp7 = regexp.MustCompile(`^(?:https?://)?api\.github\.com/.+$`)
 
 	// Used for jsDelivr URL rewriting
 	expRawRewrite = regexp.MustCompile(`^((?:https?://)?raw\.(?:githubusercontent|github)\.com/.+?/.+?)/(.+?/)`)
@@ -41,7 +42,7 @@ func NewProxyHandler() *ProxyHandler {
 }
 
 func checkURL(u string) bool {
-	for _, exp := range []*regexp.Regexp{exp1, exp2, exp3, exp4, exp5, exp6} {
+	for _, exp := range []*regexp.Regexp{exp1, exp2, exp3, exp4, exp5, exp6, exp7} {
 		if exp.MatchString(u) {
 			return true
 		}
