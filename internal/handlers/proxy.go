@@ -152,13 +152,15 @@ tokenID := tokenRecord.ID
 ip := c.ClientIP()
 userAgent := c.Request.UserAgent()
 go func() {
-database.DB.Create(&models.DownloadLog{
+if err := database.DB.Create(&models.DownloadLog{
 UserID:    userID,
 TokenID:   tokenID,
 URL:       rawPath,
 IP:        ip,
 UserAgent: userAgent,
-})
+}).Error; err != nil {
+log.Printf("Failed to create download log: %v", err)
+}
 }()
 
 // Proxy the request with user's speed limit

@@ -242,7 +242,7 @@ func (h *AuthHandler) FinishPasskeyLogin(c *gin.Context) {
 	}
 
 	if rawID := c.Query("user_id"); rawID != "" {
-		if id, err := strconv.ParseUint(rawID, 10, 64); err == nil {
+		if id, err := strconv.Atoi(rawID); err == nil && id > 0 {
 			req.UserID = uint(id)
 		}
 	}

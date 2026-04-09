@@ -136,11 +136,10 @@ TokenName string
 }
 
 var rows []logScan
-database.DB.Table("download_logs").
+database.DB.Model(&models.DownloadLog{}).
 Select("download_logs.id, download_logs.created_at, download_logs.url, download_logs.ip, users.username, tokens.name as token_name").
 Joins("LEFT JOIN users ON users.id = download_logs.user_id").
 Joins("LEFT JOIN tokens ON tokens.id = download_logs.token_id").
-Where("download_logs.deleted_at IS NULL").
 Order("download_logs.created_at desc").
 Offset((page - 1) * pageSize).
 Limit(pageSize).
