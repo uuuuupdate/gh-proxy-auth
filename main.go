@@ -37,6 +37,9 @@ func main() {
 		log.Fatalf("初始化数据库失败: %v", err)
 	}
 
+	// Initialize global bandwidth limiter from settings.
+	handlers.InitGlobalLimiter()
+
 	// Initialize WebAuthn
 	if err := service.InitWebAuthn(); err != nil {
 		log.Fatalf("初始化 WebAuthn 失败: %v", err)

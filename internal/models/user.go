@@ -17,4 +17,5 @@ type User struct {
 	TOTPSecret  string         `gorm:"size:255" json:"-"`
 	TOTPEnabled bool           `gorm:"default:false" json:"totp_enabled"`
 	MFAPriority string         `gorm:"size:20;default:passkey" json:"mfa_priority"` // passkey or totp
+	SpeedLimit  int64          `gorm:"default:0" json:"speed_limit"`                // bytes/sec, 0 = unlimited
 }

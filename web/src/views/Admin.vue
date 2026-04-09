@@ -9,11 +9,14 @@ const activeTab = ref('settings')
 const openRegistration = ref(false)
 const settingsMsg = ref({ text: '', type: '' })
 const settingsLoading = ref(false)
+const globalSpeedLimit = ref(0) // MB/s stored as float, 0 = unlimited
 
 // Users
 const users = ref<any[]>([])
 const usersPage = ref(1)
 const usersTotal = ref(0)
+const editingUserId = ref<number | null>(null)
+const editingSpeedMbps = ref('')
 
 // Logs
 const logs = ref<any[]>([])
@@ -30,14 +33,15 @@ let restartPollTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(() => {
   fetchSettings()
-  fetchUsers()
-  fetchLogs()
 })
 
 async function fetchSettings() {
   try {
     const res = await api.get('/admin/settings')
     openRegistration.value = res.data.open_registration
+    // Convert bytes/sec to MB/s
+    const bps = res.data.global_speed_limit || 0
+    globalSpeedLimit.value = bps > 0 ? Math.round(bps / (1024 * 1024) * 10) / 10 : 0
   } catch {
     // ignore
   }
@@ -47,8 +51,12 @@ async function updateSettings() {
   settingsMsg.value = { text: '', type: '' }
   settingsLoading.value = true
   try {
+    const bps = globalSpeedLimit.value > 0
+      ? Math.round(globalSpeedLimit.value * 1024 * 1024)
+      : 0
     await api.put('/admin/settings', {
       open_registration: openRegistration.value,
+      global_speed_limit: bps,
     })
     settingsMsg.value = { text: '设置已保存', type: 'success' }
   } catch (err: any) {
@@ -77,6 +85,37 @@ async function fetchLogs(page = 1) {
     logsPage.value = page
   } catch {
     // ignore
+  }
+}
+
+function formatSpeed(bytesPerSec: number): string {
+  if (!bytesPerSec || bytesPerSec <= 0) return '不限制'
+  if (bytesPerSec >= 1024 * 1024) {
+    return (bytesPerSec / (1024 * 1024)).toFixed(1) + ' MB/s'
+  }
+  return Math.round(bytesPerSec / 1024) + ' KB/s'
+}
+
+function startEditSpeed(user: any) {
+  editingUserId.value = user.id
+  const mbps = user.speed_limit > 0 ? Math.round(user.speed_limit / (1024 * 1024) * 10) / 10 : 0
+  editingSpeedMbps.value = mbps > 0 ? String(mbps) : ''
+}
+
+function cancelEditSpeed() {
+  editingUserId.value = null
+  editingSpeedMbps.value = ''
+}
+
+async function saveUserSpeed(user: any) {
+  const mbps = parseFloat(editingSpeedMbps.value) || 0
+  const bps = mbps > 0 ? Math.round(mbps * 1024 * 1024) : 0
+  try {
+    await api.put(`/admin/users/${user.id}/speed-limit`, { speed_limit: bps })
+    user.speed_limit = bps
+    editingUserId.value = null
+  } catch (err: any) {
+    alert(err.response?.data?.error || '更新失败')
   }
 }
 
@@ -181,6 +220,24 @@ function startRestartPolling() {
           </label>
         </div>
 
+        <div class="flex items-center justify-between max-w-md mt-4">
+          <div>
+            <div class="text-sm font-medium">全局带宽限制</div>
+            <div class="text-xs text-[hsl(var(--muted-foreground))]">整体下载带宽上限（MB/s），0 或留空表示不限制</div>
+          </div>
+          <div class="flex items-center gap-2">
+            <input
+              v-model="globalSpeedLimit"
+              type="number"
+              min="0"
+              step="0.1"
+              class="w-24 px-3 py-1.5 rounded-md border border-[hsl(var(--input))] bg-transparent text-sm text-right focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] focus:ring-offset-1"
+              placeholder="0"
+            />
+            <span class="text-sm text-[hsl(var(--muted-foreground))]">MB/s</span>
+          </div>
+        </div>
+
         <button @click="updateSettings" :disabled="settingsLoading" class="mt-4 px-4 py-2 rounded-md bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] text-sm font-medium hover:opacity-90 disabled:opacity-50">
           {{ settingsLoading ? '保存中...' : '保存设置' }}
         </button>
@@ -197,7 +254,9 @@ function startRestartPolling() {
               <th class="text-left px-4 py-3 font-medium">用户名</th>
               <th class="text-left px-4 py-3 font-medium">角色</th>
               <th class="text-left px-4 py-3 font-medium">TOTP</th>
+              <th class="text-left px-4 py-3 font-medium">限速</th>
               <th class="text-left px-4 py-3 font-medium">注册时间</th>
+              <th class="text-left px-4 py-3 font-medium">操作</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-[hsl(var(--border))]">
@@ -212,7 +271,32 @@ function startRestartPolling() {
                 <span v-if="user.totp_enabled" class="text-xs text-green-600">✓</span>
                 <span v-else class="text-xs text-gray-400">-</span>
               </td>
+              <td class="px-4 py-3">
+                <div v-if="editingUserId === user.id" class="flex items-center gap-1">
+                  <input
+                    v-model="editingSpeedMbps"
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    class="w-20 px-2 py-1 text-xs rounded border border-[hsl(var(--input))] bg-transparent focus:outline-none focus:ring-1 focus:ring-[hsl(var(--ring))]"
+                    placeholder="MB/s"
+                    @keyup.enter="saveUserSpeed(user)"
+                    @keyup.esc="cancelEditSpeed()"
+                  />
+                  <span class="text-xs text-[hsl(var(--muted-foreground))]">MB/s</span>
+                </div>
+                <span v-else class="text-xs" :class="user.speed_limit > 0 ? 'text-amber-600' : 'text-[hsl(var(--muted-foreground))]'">
+                  {{ formatSpeed(user.speed_limit) }}
+                </span>
+              </td>
               <td class="px-4 py-3 text-[hsl(var(--muted-foreground))]">{{ formatDate(user.created_at) }}</td>
+              <td class="px-4 py-3">
+                <div v-if="editingUserId === user.id" class="flex gap-1">
+                  <button @click="saveUserSpeed(user)" class="px-2 py-1 text-xs rounded bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] hover:opacity-90">保存</button>
+                  <button @click="cancelEditSpeed()" class="px-2 py-1 text-xs rounded border border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))]">取消</button>
+                </div>
+                <button v-else @click="startEditSpeed(user)" class="px-2 py-1 text-xs rounded border border-[hsl(var(--border))] hover:bg-[hsl(var(--secondary))]">限速</button>
+              </td>
             </tr>
           </tbody>
         </table>

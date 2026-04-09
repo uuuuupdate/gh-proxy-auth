@@ -66,6 +66,7 @@ func Setup(engine *gin.Engine) {
 			admin.GET("/settings", adminHandler.GetSettings)
 			admin.PUT("/settings", adminHandler.UpdateSettings)
 			admin.GET("/users", adminHandler.ListUsers)
+			admin.PUT("/users/:id/speed-limit", adminHandler.UpdateUserSpeedLimit)
 			admin.GET("/logs", adminHandler.GetDownloadLogs)
 			admin.GET("/update/check", updateHandler.CheckUpdate)
 			admin.POST("/update/apply", updateHandler.ApplyUpdate)
