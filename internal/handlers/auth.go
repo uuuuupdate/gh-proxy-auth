@@ -10,6 +10,7 @@ import (
 	"github.com/dowork-shanqiu/gh-proxy-auth/internal/models"
 	"github.com/dowork-shanqiu/gh-proxy-auth/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -268,12 +269,6 @@ func (h *AuthHandler) FinishPasskeyLogin(c *gin.Context) {
 		return
 	}
 
-	webauthnUser, err := service.NewWebAuthnUser(user)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取用户凭证失败"})
-		return
-	}
-
 	sessionJSON, err := service.GetSessionData(user.ID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "会话已过期"})
@@ -286,7 +281,34 @@ func (h *AuthHandler) FinishPasskeyLogin(c *gin.Context) {
 		return
 	}
 
-	credential, err := service.WebAuthn.FinishLogin(webauthnUser, session, c.Request)
+	// Parse the credential response first to get the flags
+	parsedResponse, err := protocol.ParseCredentialRequestResponse(c.Request)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "解析认证响应失败: " + err.Error()})
+		return
+	}
+
+	// Get the BackupEligible flag from the parsed response
+	beFlag := parsedResponse.Response.AuthenticatorData.Flags.HasBackupEligible()
+	bsFlag := parsedResponse.Response.AuthenticatorData.Flags.HasBackupState()
+
+	// Update the passkey's BackupEligible flag in DB before validation
+	// This handles legacy passkeys that were registered before the flag was stored
+	credIDBase64 := bufferToBase64RawURL(parsedResponse.RawID)
+	database.DB.Model(&models.Passkey{}).Where("user_id = ? AND credential_id = ?", user.ID, credIDBase64).
+		Updates(map[string]interface{}{
+			"backup_eligible": beFlag,
+			"backup_state":    bsFlag,
+		})
+
+	// Now create the WebAuthnUser with updated flags
+	webauthnUser, err := service.NewWebAuthnUser(user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "获取用户凭证失败"})
+		return
+	}
+
+	credential, err := service.WebAuthn.ValidateLogin(webauthnUser, session, parsedResponse)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "认证失败: " + err.Error()})
 		return
@@ -294,10 +316,13 @@ func (h *AuthHandler) FinishPasskeyLogin(c *gin.Context) {
 
 	service.ClearSessionData(user.ID)
 
-	// Update sign count
-	credIDBase64 := base64RawURLEncode(credential.ID)
+	// Update sign count and flags after successful login
 	database.DB.Model(&models.Passkey{}).Where("user_id = ? AND credential_id = ?", user.ID, credIDBase64).
-		Update("sign_count", credential.Authenticator.SignCount)
+		Updates(map[string]interface{}{
+			"sign_count":      credential.Authenticator.SignCount,
+			"backup_eligible": credential.Flags.BackupEligible,
+			"backup_state":    credential.Flags.BackupState,
+		})
 
 	token, err := service.GenerateJWT(user.ID, user.Username, user.IsAdmin)
 	if err != nil {
@@ -315,6 +340,6 @@ func (h *AuthHandler) FinishPasskeyLogin(c *gin.Context) {
 	})
 }
 
-func base64RawURLEncode(data []byte) string {
+func bufferToBase64RawURL(data []byte) string {
 	return base64.RawURLEncoding.EncodeToString(data)
 }

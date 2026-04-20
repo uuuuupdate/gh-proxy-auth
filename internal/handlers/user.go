@@ -252,6 +252,8 @@ func (h *UserHandler) FinishRegisterPasskey(c *gin.Context) {
 		AAGUID:          base64.RawURLEncoding.EncodeToString(credential.Authenticator.AAGUID),
 		SignCount:       credential.Authenticator.SignCount,
 		Transport:       transports,
+		BackupEligible:  credential.Flags.BackupEligible,
+		BackupState:     credential.Flags.BackupState,
 	}
 
 	if err := database.DB.Create(&passkey).Error; err != nil {

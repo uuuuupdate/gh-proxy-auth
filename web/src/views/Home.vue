@@ -1,18 +1,39 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useAuthStore } from '@/stores/auth'
-import { Copy, Check, Github, Download, Terminal, Link } from 'lucide-vue-next'
+import { ref, computed, onMounted } from 'vue'
+import { Copy, Check, Github, Download, Terminal, Link, ChevronDown } from 'lucide-vue-next'
+import api from '@/api'
 
-const auth = useAuthStore()
+interface TokenItem {
+  id: number
+  token: string
+  name: string
+  expires_at: string | null
+}
 
 const inputUrl = ref('')
 const copied = ref('')
+const tokens = ref<TokenItem[]>([])
+const selectedTokenIndex = ref(0)
 
 const domain = computed(() => {
   return window.location.origin
 })
 
-const tokenPlaceholder = 'xxxxx'
+const currentToken = computed(() => {
+  if (tokens.value.length === 0) return ''
+  return tokens.value[selectedTokenIndex.value]?.token || ''
+})
+
+const hasMultipleTokens = computed(() => tokens.value.length > 1)
+
+onMounted(async () => {
+  try {
+    const res = await api.get('/tokens')
+    tokens.value = res.data || []
+  } catch {
+    // ignore
+  }
+})
 
 const isValidGithubUrl = computed(() => {
   if (!inputUrl.value) return false
@@ -44,10 +65,10 @@ const proxyUrl = computed(() => {
 const commands = computed(() => {
   if (!proxyUrl.value) return []
   const url = proxyUrl.value
+  const token = currentToken.value
 
   // Check if it's a git clone URL
   const isGitUrl = /\/(?:info|git-)/.test(normalizedUrl.value)
-  const isArchiveOrRelease = /\/(?:releases|archive)\//.test(normalizedUrl.value)
 
   const cmds = []
 
@@ -58,7 +79,7 @@ const commands = computed(() => {
     cmds.push({
       label: 'Git Clone',
       icon: Terminal,
-      command: `git -c http.extraHeader="X-XN-Token: ${tokenPlaceholder}" clone ${proxyRepoUrl}`,
+      command: `git -c http.extraHeader="X-XN-Token: ${token}" clone ${proxyRepoUrl}`,
     })
   }
 
@@ -66,19 +87,19 @@ const commands = computed(() => {
     cmds.push({
       label: 'curl 下载',
       icon: Download,
-      command: `curl -H "X-XN-Token: ${tokenPlaceholder}" -L -O ${url}`,
+      command: `curl -H "X-XN-Token: ${token}" -L -O ${url}`,
     })
     cmds.push({
       label: 'wget 下载',
       icon: Download,
-      command: `wget --header="X-XN-Token: ${tokenPlaceholder}" ${url}`,
+      command: `wget --header="X-XN-Token: ${token}" ${url}`,
     })
   }
 
   cmds.push({
     label: '代理链接',
     icon: Link,
-    command: `${url}${url.includes('?') ? '&' : '?'}token=${tokenPlaceholder}`,
+    command: `${url}${url.includes('?') ? '&' : '?'}token=${token}`,
   })
 
   return cmds
@@ -131,12 +152,37 @@ async function copyToClipboard(text: string, id: string) {
       </div>
     </div>
 
+    <!-- Token selector (only shown when multiple tokens exist) -->
+    <div v-if="hasMultipleTokens && isValidGithubUrl" class="bg-white rounded-lg border border-[hsl(var(--border))] shadow-sm p-4 mb-6">
+      <label class="block text-sm font-medium mb-2">选择 Token</label>
+      <div class="relative">
+        <select
+          v-model="selectedTokenIndex"
+          class="w-full appearance-none px-4 py-2.5 pr-10 rounded-md border border-[hsl(var(--input))] bg-transparent text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))] focus:ring-offset-1"
+        >
+          <option v-for="(t, idx) in tokens" :key="t.id" :value="idx">
+            {{ t.name }} ({{ t.token.slice(0, 8) }}...)
+          </option>
+        </select>
+        <ChevronDown class="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground))] pointer-events-none" />
+      </div>
+    </div>
+
+    <!-- No token warning -->
+    <div v-if="tokens.length === 0 && isValidGithubUrl" class="bg-orange-50 rounded-lg border border-orange-200 shadow-sm p-4 mb-6">
+      <p class="text-sm text-orange-600">
+        您还没有创建 Token，请前往
+        <router-link to="/profile" class="underline font-medium">个人中心</router-link>
+        创建 Token 后再生成代理链接。
+      </p>
+    </div>
+
     <!-- Results -->
     <div v-if="inputUrl && !isValidGithubUrl" class="bg-white rounded-lg border border-orange-200 shadow-sm p-4 mb-6">
       <p class="text-sm text-orange-600">请输入有效的 GitHub 链接</p>
     </div>
 
-    <div v-if="isValidGithubUrl" class="space-y-4">
+    <div v-if="isValidGithubUrl && tokens.length > 0" class="space-y-4">
       <div v-for="(cmd, idx) in commands" :key="idx" class="bg-white rounded-lg border border-[hsl(var(--border))] shadow-sm p-4">
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-2">
@@ -152,14 +198,6 @@ async function copyToClipboard(text: string, id: string) {
         <div class="bg-[hsl(var(--secondary))] rounded-md p-3 font-mono text-xs break-all leading-relaxed">
           {{ cmd.command }}
         </div>
-      </div>
-
-      <div class="bg-blue-50 rounded-lg border border-blue-200 p-4">
-        <p class="text-sm text-blue-700">
-          💡 提示: 将 <code class="bg-blue-100 px-1 rounded">{{ tokenPlaceholder }}</code> 替换为您在
-          <router-link to="/profile" class="underline font-medium">个人中心</router-link>
-          中生成的 Token。
-        </p>
       </div>
     </div>
   </div>

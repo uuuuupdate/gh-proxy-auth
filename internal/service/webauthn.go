@@ -80,6 +80,10 @@ func (u *WebAuthnUser) WebAuthnCredentials() []webauthn.Credential {
 			PublicKey:       p.PublicKey,
 			AttestationType: p.AttestationType,
 			Transport:       transports,
+			Flags: webauthn.CredentialFlags{
+				BackupEligible: p.BackupEligible,
+				BackupState:    p.BackupState,
+			},
 			Authenticator: webauthn.Authenticator{
 				SignCount: p.SignCount,
 			},
