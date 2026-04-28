@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/database"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/database"
 )
 
 // tokenBucket is a simple thread-safe token bucket rate limiter.

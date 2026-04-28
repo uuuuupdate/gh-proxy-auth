@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/database"
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/models"
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/service"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/database"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/models"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"

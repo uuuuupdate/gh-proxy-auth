@@ -1,4 +1,4 @@
-module github.com/dowork-shanqiu/gh-proxy-auth
+module github.com/uuuuupdate/gh-proxy-auth
 
 go 1.25.0
 

@@ -3,8 +3,8 @@ package database
 import (
 	"fmt"
 
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/config"
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/models"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/config"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/models"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"

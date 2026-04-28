@@ -1,8 +1,8 @@
 package router
 
 import (
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/handlers"
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/middleware"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/handlers"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/middleware"
 	"github.com/gin-gonic/gin"
 )
 

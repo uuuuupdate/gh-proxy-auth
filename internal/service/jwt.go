@@ -3,7 +3,7 @@ package service
 import (
 	"time"
 
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/config"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/config"
 	"github.com/golang-jwt/jwt/v5"
 )
 

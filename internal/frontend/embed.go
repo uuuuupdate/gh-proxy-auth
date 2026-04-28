@@ -4,7 +4,7 @@ import (
 	"embed"
 	"io/fs"
 
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/handlers"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/handlers"
 )
 
 //go:embed all:dist

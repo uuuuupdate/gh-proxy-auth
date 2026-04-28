@@ -11,12 +11,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/config"
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/database"
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/frontend"
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/handlers"
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/router"
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/service"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/config"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/database"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/frontend"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/handlers"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/router"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
