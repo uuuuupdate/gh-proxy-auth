@@ -7,9 +7,9 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/config"
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/database"
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/models"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/config"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/database"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/models"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 )

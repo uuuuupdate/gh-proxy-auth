@@ -32,7 +32,7 @@ var RestartChan = make(chan struct{}, 1)
 var updateMu sync.Mutex
 
 const (
-	githubRepo      = "dowork-shanqiu/gh-proxy-auth"
+	githubRepo      = "uuuuupdate/gh-proxy-auth"
 	githubAPIURL    = "https://api.github.com/repos/" + githubRepo + "/releases/latest"
 	updateTmpPrefix = ".gh-proxy-auth-update-"
 )

@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/service"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/service"
 	"github.com/gin-gonic/gin"
 )
 

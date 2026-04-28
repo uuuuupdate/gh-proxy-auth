@@ -3,8 +3,8 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/database"
-	"github.com/dowork-shanqiu/gh-proxy-auth/internal/models"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/database"
+	"github.com/uuuuupdate/gh-proxy-auth/internal/models"
 	"github.com/gin-gonic/gin"
 )
 

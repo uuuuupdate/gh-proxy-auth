@@ -10,9 +10,9 @@ import (
 "strings"
 "time"
 
-"github.com/dowork-shanqiu/gh-proxy-auth/internal/config"
-"github.com/dowork-shanqiu/gh-proxy-auth/internal/database"
-"github.com/dowork-shanqiu/gh-proxy-auth/internal/models"
+"github.com/uuuuupdate/gh-proxy-auth/internal/config"
+"github.com/uuuuupdate/gh-proxy-auth/internal/database"
+"github.com/uuuuupdate/gh-proxy-auth/internal/models"
 "github.com/gin-gonic/gin"
 "gorm.io/gorm"
 )
